@@ -14,6 +14,7 @@ from omegaconf import OmegaConf
 import pathlib
 from torch.utils.data import DataLoader
 import copy
+import wandb
 
 import tqdm, random
 import numpy as np
@@ -108,16 +109,16 @@ class RobotWorkspace(BaseWorkspace):
         env_runner = None
 
         # configure logging
-        # wandb_run = wandb.init(
-        #     dir=str(self.output_dir),
-        #     config=OmegaConf.to_container(cfg, resolve=True),
-        #     **cfg.logging
-        # )
-        # wandb.config.update(
-        #     {
-        #         "output_dir": self.output_dir,
-        #     }
-        # )
+        wandb_run = wandb.init(
+            dir=str(self.output_dir),
+            config=OmegaConf.to_container(cfg, resolve=True),
+            **cfg.logging
+        )
+        wandb.config.update(
+            {
+                "output_dir": self.output_dir,
+            }
+        )
 
         # configure checkpoint
         topk_manager = TopKCheckpointManager(save_dir=os.path.join(self.output_dir, "checkpoints"),
@@ -200,6 +201,10 @@ class RobotWorkspace(BaseWorkspace):
                                 is not None) and batch_idx >= (cfg.training.max_train_steps - 1):
                             break
 
+                        if cfg.training.log_every > 0 and (self.global_step % cfg.training.log_every == 0):
+                            # log to wandb
+                            wandb.log(step_log, step=self.global_step)
+
                 # at the end of each epoch
                 # replace train_loss with epoch average
                 train_loss = np.mean(train_losses)
@@ -238,6 +243,7 @@ class RobotWorkspace(BaseWorkspace):
                             val_loss = torch.mean(torch.tensor(val_losses)).item()
                             # log epoch average validation loss
                             step_log["val_loss"] = val_loss
+                            wandb.log({"val_loss": val_loss}, step=self.global_step)
 
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0:
@@ -251,6 +257,7 @@ class RobotWorkspace(BaseWorkspace):
                         pred_action = result["action_pred"]
                         mse = torch.nn.functional.mse_loss(pred_action, gt_action)
                         step_log["train_action_mse_error"] = mse.item()
+                        wandb.log({"train_action_mse_error": mse.item()}, step=self.global_step)
                         del batch
                         del obs_dict
                         del gt_action
@@ -272,6 +279,7 @@ class RobotWorkspace(BaseWorkspace):
                 json_logger.log(step_log)
                 self.global_step += 1
                 self.epoch += 1
+        wandb.finish()
 
 
 class BatchSampler:
