@@ -1,0 +1,8 @@
+        [45] (list, len=3)
+            [0]/ (dict, keys=['state', 'enc_cam_0'])
+                state (array, shape=(32,), dtype=float32)
+                enc_cam_0 (bytes, length=10676)
+            [1] (array, shape=(7,), dtype=float32)
+            [2] (float)
+
+
