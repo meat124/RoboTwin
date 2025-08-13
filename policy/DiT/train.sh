@@ -9,7 +9,7 @@ gpu_id=${5}
 export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}"
 export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}"
 
-export DATA_DIR="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/data_${task_name}"
+export DATA_DIR="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/data/${task_name}/${task_config}"
 
 export RESTORE_PATH="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/visual_features/resnet18/IN_1M_resnet18.pth"
 
