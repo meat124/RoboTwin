@@ -25,3 +25,5 @@ envs/curobo/*
 
 /*.json*
 /*.txt
+
+/logs
