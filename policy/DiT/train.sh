@@ -4,7 +4,36 @@ task_name=${1}
 task_config=${2}
 expert_data_num=${3}
 seed=${4}
-action_dim=${5}
-gpu_id=${6}
+gpu_id=${5}
 
-head_camera_type=D435
+export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}"
+export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}"
+
+export DATA_DIR="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/data_${task_name}"
+
+export RESTORE_PATH="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/visual_features/resnet18/IN_1M_resnet18.pth"
+
+export AC_CHUNK=50
+export BATCH_SIZE=50
+
+echo "============================================="
+echo "Starting DiT Policy Training for RoboTwin"
+echo "Experiment Name: $EXP_NAME"
+echo "Dataset Path: $DATA_DIR/buf.pkl"
+echo "============================================="
+
+python finetune.py \
+    exp_name=$EXP_NAME \
+    agent=diffusion \
+    task=${task_name} \
+    buffer_path="$DATA_DIR/buf.pkl" \
+    agent/features=resnet_gn \
+    agent.features.restore_path=$RESTORE_PATH \
+    trainer=bc_cos_sched \
+    ac_chunk=$AC_CHUNK \
+    batch_size=$BATCH_SIZE \
+    wandb.name=$WANDB_NAME
+
+echo "============================================="
+echo "Training Finished."
+echo "============================================="

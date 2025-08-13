@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 from tqdm import tqdm
 from einops import rearrange
+import wandb
 
 from constants import DT
 from constants import PUPPET_GRIPPER_JOINT_OPEN
@@ -124,6 +125,12 @@ def main(args):
     train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train,
                                                            batch_size_val)
 
+    wandb.init(
+        project="RoboTwin-ACT",
+        name=f"{task_name}_{policy_class}_seed{config['seed']}",
+        config=config,
+    )
+
     # save dataset stats
     if not os.path.isdir(ckpt_dir):
         os.makedirs(ckpt_dir)
@@ -137,6 +144,8 @@ def main(args):
     ckpt_path = os.path.join(ckpt_dir, f"policy_best.ckpt")
     torch.save(best_state_dict, ckpt_path)
     print(f"Best ckpt, val loss {min_val_loss:.6f} @ epoch{best_epoch}")
+
+    wandb.finish()
 
 
 def make_policy(policy_class, policy_config):
@@ -370,11 +379,14 @@ def train_bc(train_dataloader, val_dataloader, config):
     policy.cuda()
     optimizer = make_optimizer(policy_class, policy)
 
+    wandb.watch(policy, log="all", log_freq=50)
+
     train_history = []
     validation_history = []
     min_val_loss = np.inf
     best_ckpt_info = None
     for epoch in tqdm(range(num_epochs)):
+        wandb.log({"epoch": epoch}, step=epoch)
         print(f"\nEpoch {epoch}")
         # validation
         with torch.inference_mode():
@@ -396,9 +408,13 @@ def train_bc(train_dataloader, val_dataloader, config):
             summary_string += f"{k}: {v.item():.3f} "
         print(summary_string)
 
+        val_log_dict = {f"val_{k}": v for k, v in epoch_summary.items()}
+        wandb.log(val_log_dict, step=epoch)
+
         # training
         policy.train()
         optimizer.zero_grad()
+        epoch_train_dicts = []
         for batch_idx, data in enumerate(train_dataloader):
             forward_dict = forward_pass(data, policy)
             # backward
@@ -407,13 +423,18 @@ def train_bc(train_dataloader, val_dataloader, config):
             optimizer.step()
             optimizer.zero_grad()
             train_history.append(detach_dict(forward_dict))
-        epoch_summary = compute_dict_mean(train_history[(batch_idx + 1) * epoch:(batch_idx + 1) * (epoch + 1)])
+            epoch_train_dicts.append(detach_dict(forward_dict))
+
+        epoch_summary = compute_dict_mean(epoch_train_dicts)
         epoch_train_loss = epoch_summary["loss"]
         print(f"Train loss: {epoch_train_loss:.5f}")
         summary_string = ""
         for k, v in epoch_summary.items():
             summary_string += f"{k}: {v.item():.3f} "
         print(summary_string)
+
+        train_log_dict = {f"train_{k}": v for k, v in epoch_summary.items()}
+        wandb.log(train_log_dict, step=epoch)
 
         if epoch % 500 == 0:  # TODO
             ckpt_path = os.path.join(ckpt_dir, f"policy_epoch_{epoch}_seed_{seed}.ckpt")
@@ -456,6 +477,10 @@ def plot_history(train_history, validation_history, num_epochs, ckpt_dir, seed):
         plt.legend()
         plt.title(key)
         plt.savefig(plot_path)
+
+        wandb.log({f"plot/{key}": wandb.Image(plt)}, step=num_epochs)
+        plt.close()
+
     print(f"Saved plots to {ckpt_dir}")
 
 

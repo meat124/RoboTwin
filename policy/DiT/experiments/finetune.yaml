@@ -6,7 +6,7 @@
 
 defaults:
   - agent: diffusion
-  - task: robotwin_stack_blocks_three
+  - task: stack_blocks_three
   - trainer: bc
   # - override hydra/launcher: slurm
   - _self_
@@ -33,8 +33,7 @@ schedule_freq: 1
 devices: 1
 seed: 292285
 
-# buffer_path: ./buffer.pkl
-buffer_path: /home/hyunjin/dit_ws/src/RoboTwin/policy/DiT/data_stack_blocks_three/buf.pkl
+buffer_path: ./buffer.pkl
 ac_chunk: 50
 img_chunk: 3  # number of image timesteps to use (including current one)
 train_transform: medium
