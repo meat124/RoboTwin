@@ -1,6 +1,6 @@
 #!/bin/bash
 
-policy_name=Your_Policy # [TODO] 
+policy_name=DiT 
 task_name=${1}
 task_config=${2}
 ckpt_setting=${3}
