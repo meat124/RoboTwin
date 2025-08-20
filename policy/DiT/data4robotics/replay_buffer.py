@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 
 
+import json
 import os
 import pickle as pkl
 import random
@@ -90,6 +91,14 @@ class RobobufReplayBuffer(Dataset):
         if os.path.exists(norm_file):
             shutil.copyfile(norm_file, "./ac_norm.json")
 
+            with open("./ac_norm.json", "r") as f:
+                ac_norm = json.load(f)
+                ac_loc = np.array(ac_norm["loc"], dtype=np.float32)
+                ac_scale = np.array(ac_norm["scale"], dtype=np.float32)
+                global _AC_LOC, _AC_SCALE
+                _AC_LOC = torch.tensor(ac_loc, dtype=torch.float32)
+                _AC_SCALE = torch.tensor(ac_scale, dtype=torch.float32)
+
         # shuffle the list with the fixed seed
         rng = random.Random(BUF_SHUFFLE_RNG)
 
@@ -168,4 +177,4 @@ class RobobufReplayBuffer(Dataset):
         assert (
             loss_mask.shape[0] == a_t.shape[0]
         ), "a_t and mask shape must be ac_chunk!"
-        return (i_t, o_t), a_t, loss_mask
+        return (i_t, o_t), a_t, loss_mask, (_AC_LOC, _AC_SCALE)

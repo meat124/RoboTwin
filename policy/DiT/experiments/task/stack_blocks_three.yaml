@@ -1,7 +1,7 @@
 # 파일 경로: experiments/task/robotwin_stack_blocks_three.yaml
 
 # _target_을 범용 Task 클래스로 변경
-_target_: data4robotics.task.DefaultTask
+_target_: data4robotics.task.BCTask
 
 # RoboTwin 데이터셋의 사양에 맞게 수정
 obs_dim: 14          # state 벡터의 차원 (14)

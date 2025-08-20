@@ -67,11 +67,16 @@ class BCTask(DefaultTask):
         losses = []
         action_l2, action_lsig = [], []
         for batch in self.test_loader:
-            (imgs, obs), actions, mask = batch
+            (imgs, obs), actions, mask, (ac_loc, ac_scale) = batch
             imgs = {k: v.to(trainer.device_id) for k, v in imgs.items()}
-            obs, actions, mask = [
-                ar.to(trainer.device_id) for ar in (obs, actions, mask)
+            obs, actions, mask, ac_loc, ac_scale = [
+                ar.to(trainer.device_id) for ar in (obs, actions, mask, ac_loc, ac_scale)
             ]
+            ac_loc_expanded, ac_scale_expanded = ac_loc.unsqueeze(1), ac_scale.unsqueeze(1)
+            
+            # normalize actions
+            obs = (obs - ac_loc) / ac_scale
+            actions = (actions - ac_loc_expanded) / ac_scale_expanded
 
             with torch.no_grad():
                 loss = trainer.training_step(batch, global_step)
@@ -109,3 +114,4 @@ class BCTask(DefaultTask):
                 },
                 step=global_step,
             )
+        return mean_val_loss
