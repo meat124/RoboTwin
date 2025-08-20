@@ -78,6 +78,7 @@ def create_wandb_run(wandb_cfg, job_config, run_id=None):
         notes=notes,
         id=run_id,
         resume=run_id is not None,
+        mode=wandb_cfg.mode,
     )
     return wandb_run.id
 

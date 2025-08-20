@@ -7,6 +7,7 @@ import io
 from PIL import Image
 import re
 import numpy as np
+import imageio
 
 
 def print_structure(name, obj, indent=0):
@@ -117,6 +118,100 @@ def visualize_pkl(pkl_path, max_depth):
     print_pkl_structure(data)
 
 
+def visualize_state_in_pkl(pkl_path, cam_name='enc_cam_0'):
+    """
+    Visualizes the 'state' from each timestep in the first episode of a pickle file,
+    plots each joint state over time, and saves a video for the specified camera view.
+    """
+    with open(pkl_path, "rb") as f:
+        data = pickle.load(f)
+
+    if not isinstance(data, list) or not data:
+        print("Pickle file does not contain a list of episodes or is empty.")
+        return
+
+    print(f"Visualizing state and creating video for Episode 0 in {pkl_path}:")
+    
+    episode_data = data[0]
+    if not isinstance(episode_data, list):
+        print("  Episode 0 is not a list of timesteps.")
+        return
+
+    states_over_time = []
+    video_frames = []
+    for timestep_idx, timestep_tuple in enumerate(episode_data):
+        try:
+            # Assuming the structure is: list -> list -> tuple -> dict
+            # and the dictionary is the first element of the tuple.
+            obs_dict = timestep_tuple[0]
+            if isinstance(obs_dict, dict):
+                if 'state' in obs_dict:
+                    state = obs_dict['state']
+                    states_over_time.append(state)
+                
+                # Extract image for video
+                if cam_name in obs_dict:
+                    # The image is a flattened numpy array, reshape it to (H, W, C)
+                    img_array = obs_dict[cam_name]
+                    # Assuming image dimensions are 128x128 with 3 channels (RGB)
+                    h, w, c = 256, 256, 3
+                    if img_array.size == h * w * c:
+                        img_array = img_array.reshape(h, w, c)
+                        video_frames.append(img_array)
+                    else:
+                        print(f"  Timestep {timestep_idx}: Image size mismatch for '{cam_name}'. Expected {h*w*c}, got {img_array.size}.")
+                else:
+                    print(f"  Timestep {timestep_idx}: '{cam_name}' image not found in observation dict.")
+
+            else:
+                print(f"  Timestep {timestep_idx}: First element is not a dictionary.")
+        except (IndexError, TypeError) as e:
+            print(f"  Timestep {timestep_idx}: Could not access data. Unexpected structure: {e}")
+
+    # --- Plotting Joint States ---
+    if not states_over_time:
+        print("No states found to plot.")
+    else:
+        states_array = np.array(states_over_time)
+        num_timesteps, num_joints = states_array.shape
+        timesteps = np.arange(num_timesteps)
+
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(12, 8))
+        for i in range(num_joints):
+            plt.plot(timesteps, states_array[:, i], label=f'Joint {i}')
+
+        plt.title('Joint States Over Time for Episode 0')
+        plt.xlabel('Timestep')
+        plt.ylabel('Joint State Value')
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.grid(True)
+        plt.tight_layout()
+        
+        data_dir = os.path.dirname(pkl_path) or "."
+        base_filename = os.path.splitext(os.path.basename(pkl_path))[0]
+        plot_filename = f"{base_filename}_joint_states.png"
+        save_path = os.path.join(data_dir, plot_filename)
+        plt.savefig(save_path)
+        print(f"Plot saved to {save_path}")
+        plt.close()
+
+    # --- Saving Video ---
+    if not video_frames:
+        print(f"No frames found for '{cam_name}' to create a video.")
+        return
+
+    data_dir = os.path.dirname(pkl_path) or "."
+    base_filename = os.path.splitext(os.path.basename(pkl_path))[0]
+    video_filename = f"{base_filename}_{cam_name}_episode0.mp4"
+    video_path = os.path.join(data_dir, video_filename)
+    
+    print(f"Saving video to {video_path}...")
+    imageio.mimsave(video_path, video_frames, fps=30, macro_block_size=1)
+    print("Video saved successfully.")
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process HDF5 to PKL conversion or visualization")
     parser.add_argument(
@@ -137,5 +232,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    visualize_pkl(args.pkl_path, args.max_depth)
+    # visualize_pkl(args.pkl_path, args.max_depth)
+    visualize_state_in_pkl(args.pkl_path)
     # visualize_hdf5(args.hdf5_path)

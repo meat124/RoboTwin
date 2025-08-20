@@ -62,6 +62,8 @@ def bc_finetune(cfg: DictConfig):
 
         trainer.set_train()
         train_iterator = iter(task.train_loader)
+        global_val_loss = float("inf")
+        best_ckpt_step = None
         for itr in (
             pbar := tqdm.tqdm(range(cfg.max_iterations), postfix=dict(Loss=None))
         ):
@@ -93,10 +95,14 @@ def bc_finetune(cfg: DictConfig):
             if misc.GLOBAL_STEP % cfg.schedule_freq == 0:
                 trainer.step_schedule()
 
-            # if misc.GLOBAL_STEP % cfg.eval_freq == 0:
-            #     trainer.set_eval()
-            #     task.eval(trainer, misc.GLOBAL_STEP)
-            #     trainer.set_train()
+            if misc.GLOBAL_STEP % cfg.eval_freq == 0:
+                trainer.set_eval()
+                val_loss = task.eval(trainer, misc.GLOBAL_STEP)
+                trainer.set_train()
+                if val_loss < global_val_loss:
+                    global_val_loss = val_loss
+                    ckpt_path = f"{cfg.checkpoint_path}_best.ckpt"
+                    best_ckpt_step = misc.GLOBAL_STEP
 
             if misc.GLOBAL_STEP >= cfg.max_iterations:
                 trainer.save_checkpoint(cfg.checkpoint_path, misc.GLOBAL_STEP)
@@ -104,6 +110,7 @@ def bc_finetune(cfg: DictConfig):
             elif misc.GLOBAL_STEP % cfg.save_freq == 0:
                 ckpt_path = f"{cfg.checkpoint_path}_{misc.GLOBAL_STEP}.ckpt"
                 trainer.save_checkpoint(ckpt_path, misc.GLOBAL_STEP)
+        print(f"Best checkpoint: {best_ckpt_step}")
 
     # gracefully handle and log errors
     except Exception:
