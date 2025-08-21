@@ -278,7 +278,7 @@ class _DiTNoiseNet(nn.Module):
         self.enc_pos = _PositionalEncoding(hidden_dim)
         self.register_parameter(
             "dec_pos",
-            nn.Parameter(torch.empty(ac_dim, 1, hidden_dim), requires_grad=True),
+            nn.Parameter(torch.empty(ac_dim + 1, 1, hidden_dim), requires_grad=True),
         )
         nn.init.xavier_uniform_(self.dec_pos.data)
 
@@ -378,6 +378,7 @@ class _DiTNoiseNet(nn.Module):
         )  # [B, T+1, hidden_dim]
         dec_in = dec_in + degree_feature
         dec_in = dec_in.transpose(0, 1)  # [T+1, B, hidden_dim]
+        dec_in = dec_in + self.dec_pos
         # dec_in = ac_tokens + self.dec_pos
 
         # apply decoder
