@@ -55,6 +55,12 @@ class BaseAgent(nn.Module):
             self._obs_proc = nn.Sequential(
                 nn.Dropout(p=0.2), nn.Linear(odim, self._token_dim)
             )
+        elif use_obs == "add_token_graphormer_v2":
+            self._obs_strat = "add_token_graphormer_v2"
+            self._n_tokens += 1
+            self._obs_proc = nn.Sequential(
+                nn.Dropout(p=0.2), nn.Linear(odim * 4, self._token_dim)
+            )
         elif use_obs == "pad_img_tokens":
             self._obs_strat = "pad_img_tokens"
             self._token_dim += odim
@@ -91,7 +97,7 @@ class BaseAgent(nn.Module):
         # start by getting image tokens
         tokens = self.embed(imgs)
 
-        if self._obs_strat == "add_token":
+        if self._obs_strat in ["add_token", "add_token_graphormer_v2"]:
             obs_token = self._obs_proc(obs)[:, None]
             tokens = torch.cat((tokens, obs_token), 1)
         elif self._obs_strat == "pad_img_tokens":
