@@ -69,6 +69,7 @@ def main(usr_args):
     # checkpoint_num = usr_args['checkpoint_num']
     policy_name = usr_args["policy_name"]
     instruction_type = usr_args["instruction_type"]
+    temporal_ensemble = usr_args["temporal_ensemble"]
     save_dir = None
     video_save_dir = None
     video_size = None
@@ -170,7 +171,8 @@ def main(usr_args):
                                    st_seed,
                                    test_num=test_num,
                                    video_size=video_size,
-                                   instruction_type=instruction_type)
+                                   instruction_type=instruction_type,
+                                   temporal_ensemble=temporal_ensemble)
     suc_nums.append(suc_num)
 
     topk_success_rate = sorted(suc_nums, reverse=True)[:topk]
@@ -193,7 +195,8 @@ def eval_policy(task_name,
                 st_seed,
                 test_num=100,
                 video_size=None,
-                instruction_type=None):
+                instruction_type=None,
+                temporal_ensemble=False):
     print(f"\033[34mTask Name: {args['task_name']}\033[0m")
     print(f"\033[34mPolicy Name: {args['policy_name']}\033[0m")
 
@@ -292,7 +295,7 @@ def eval_policy(task_name,
         reset_func(model)
         while TASK_ENV.take_action_cnt < TASK_ENV.step_lim:
             observation = TASK_ENV.get_obs()
-            eval_func(TASK_ENV, model, observation)
+            eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble)
             if TASK_ENV.eval_success:
                 succ = True
                 break

@@ -6,6 +6,7 @@ task_config=${2}
 ckpt_setting=${3}
 seed=${4}
 gpu_id=${5}
+temporal_ensemble=${6}
 # [TODO] add parameters here
 
 export CUDA_VISIBLE_DEVICES=${gpu_id}
@@ -20,5 +21,6 @@ python script/eval_policy.py --config policy/$policy_name/deploy_policy.yml \
     --task_config ${task_config} \
     --ckpt_setting ${ckpt_setting} \
     --seed ${seed} \
-    --policy_name ${policy_name} 
+    --policy_name ${policy_name}  \
+    --temporal_ensemble ${temporal_ensemble} \
     # [TODO] add parameters here

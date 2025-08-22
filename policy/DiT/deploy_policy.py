@@ -88,7 +88,7 @@ def get_model(usr_args):  # from deploy_policy.yml and eval.sh (overrides)
 act_history = None
 
 
-def eval(TASK_ENV, model, observation):
+def eval(TASK_ENV, model, observation, temporal_ensemble=False):
     """
     All the function interfaces below are just examples
     You can modify them according to your implementation
@@ -98,44 +98,44 @@ def eval(TASK_ENV, model, observation):
     obs = encode_obs(observation)
     instruction = TASK_ENV.get_instruction()
     
-    # ======== Get Action with Temporal Ensemble ========
-    actions = model.get_action(obs)
-    if act_history is None:
-        act_history = deque(maxlen=len(actions))
-    act_history.append(actions)
+    if temporal_ensemble:
+        # ======== Get Action with Temporal Ensemble ========
+        actions = model.get_action(obs)
+        if act_history is None:
+            act_history = deque(maxlen=len(actions))
+        act_history.append(actions)
 
-    num_actions = len(act_history)
-    curr_act_preds = np.stack(
-        [
-            pred_actions[i]
-            for (i, pred_actions) in zip(
-                range(num_actions - 1, -1, -1), act_history
-            )
-        ]
-    )
+        num_actions = len(act_history)
+        curr_act_preds = np.stack(
+            [
+                pred_actions[i]
+                for (i, pred_actions) in zip(
+                    range(num_actions - 1, -1, -1), act_history
+                )
+            ]
+        )
 
-    # compute the weighted average across all predictions for this timestep
-    weights = np.exp(-EXP_WEIGHT * np.arange(num_actions))[::-1]
-    weights = weights / weights.sum()
-    action = np.sum(weights[:, None] * curr_act_preds, axis=0)  # weighted average
+        # compute the weighted average across all predictions for this timestep
+        weights = np.exp(-EXP_WEIGHT * np.arange(num_actions))[::-1]
+        weights = weights / weights.sum()
+        action = np.sum(weights[:, None] * curr_act_preds, axis=0)  # weighted average
 
-    action = action * _AC_SCALE + _AC_LOC  # denormalize the action
+        action = action * _AC_SCALE + _AC_LOC  # denormalize the action
 
-    TASK_ENV.take_action(action)
-    observation = TASK_ENV.get_obs()
-    obs = encode_obs(observation)
-    model.update_obs(obs)
-
-
-    # # ======== Get Action without Temporal Ensemble ========
-    # actions = model.get_action(obs)
-    
-    # for action in actions:
-    #     action = action * _AC_SCALE + _AC_LOC
-    #     TASK_ENV.take_action(action)
-    #     observation = TASK_ENV.get_obs()
-    #     obs = encode_obs(observation)
-    #     model.update_obs(obs)
+        TASK_ENV.take_action(action)
+        observation = TASK_ENV.get_obs()
+        obs = encode_obs(observation)
+        model.update_obs(obs)
+    else:
+        # ======== Get Action without Temporal Ensemble ========
+        actions = model.get_action(obs)
+        
+        for action in actions:
+            action = action * _AC_SCALE + _AC_LOC
+            TASK_ENV.take_action(action)
+            observation = TASK_ENV.get_obs()
+            obs = encode_obs(observation)
+            model.update_obs(obs)
 
 
 def reset_model(model):  
