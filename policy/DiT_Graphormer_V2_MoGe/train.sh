@@ -40,8 +40,7 @@ python finetune.py \
     ac_chunk=$AC_CHUNK \
     batch_size=$BATCH_SIZE \
     wandb.name=$WANDB_NAME \
-    wandb.mode=disabled \
-    eval_freq=10
+    wandb.mode=online
 echo "============================================="
 echo "Training Finished."
 echo "============================================="

@@ -9,12 +9,12 @@
 # 그 외
 
 module swap cuda/12.5 cuda/12.1
-source /home/meat124/anaconda3/bin/activate RoboTwin_DiT_test
-conda activate RoboTwin_DiT_test              # Conda 환경 활성화
+source /home/meat124/anaconda3/bin/activate RoboTwin_DiT_MoGe
+conda activate RoboTwin_DiT_MoGe              # Conda 환경 활성화
 echo "Conda environment activated."
 
 # 실제 실행 명령
 echo "Starting training script in DiT_Graphormer_V2_MoGe directory."
 # bash train.sh ${task_name} ${task_config} ${expert_data_num} ${seed} ${gpu_id}
-srun bash train.sh place_dual_shoes demo_clean 100 0 0
+srun bash train.sh handover_block demo_clean 100 0 0
 echo "Training script completed."

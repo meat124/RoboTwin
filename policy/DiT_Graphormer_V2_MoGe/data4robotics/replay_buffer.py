@@ -97,7 +97,7 @@ class RobobufReplayBuffer(Dataset):
         goal_geom_prob=0.01,
         past_frames=0,
         ac_dim=7,
-        moge=False,
+        moge=True,
     ):
         assert mode in ("train", "test"), "Mode must be train/test"
         buf = _cached_load(buffer_path)

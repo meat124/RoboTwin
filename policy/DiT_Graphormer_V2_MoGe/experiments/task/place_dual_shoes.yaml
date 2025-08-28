@@ -29,6 +29,9 @@ train_buffer:
   # 5. 행동 청크 크기
   ac_chunk: ${ac_chunk}
 
+  # MoGe 사용
+  moge: True
+
 # test_buffer도 train_buffer와 유사하게 설정
 test_buffer:
   _target_: data4robotics.replay_buffer.RobobufReplayBuffer

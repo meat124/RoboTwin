@@ -42,7 +42,7 @@ train_transform: medium
 
 wandb:
   name: null
-  project: RoboTwin-DiT_Graphormer_V2_MoGe-Policy
+  project: RoboTwin-DiT-Policy
   group: ${exp_name}
   sweep_name_prefix: eval
   debug: False
