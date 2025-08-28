@@ -9,14 +9,17 @@ gpu_id=${5}
 export AC_CHUNK=16
 export BATCH_SIZE=150
 
-export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_img_chunk_1_ac_chunk_${AC_CHUNK}_batch_${BATCH_SIZE}_diffusion_graphormer_bestckpt"
-export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_img_chunk_1_ac_chunk_${AC_CHUNK}_batch_${BATCH_SIZE}_diffusion_graphormer_bestckpt"
+export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_img_chunk_1_ac_chunk_${AC_CHUNK}_batch_${BATCH_SIZE}_diffusion"
+export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_img_chunk_1_ac_chunk_${AC_CHUNK}_batch_${BATCH_SIZE}_diffusion"
 # export EXP_NAME="test"
 # export WANDB_NAME="test"
 
-export DATA_DIR="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/data/${task_name}/${task_config}"
+export DATA_DIR="/scratch2/meat124/dit_ws/src/RoboTwin/data_dit/${task_name}/${task_config}"
 
 export RESTORE_PATH="/scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/visual_features/resnet18/IN_1M_resnet18.pth"
+
+# export RESUME_PATH="$EXP_NAME.ckpt_100000.ckpt"
+export RESUME_PATH=null
 
 
 echo "============================================="
@@ -27,16 +30,17 @@ echo "============================================="
 
 python finetune.py \
     exp_name=$EXP_NAME \
-    agent=diffusion_graphormer \
+    agent=diffusion \
     task=${task_name} \
     buffer_path="$DATA_DIR/buf.pkl" \
+    resume_path=$RESUME_PATH \
     agent/features=resnet_gn \
     agent.features.restore_path=$RESTORE_PATH \
     trainer=bc_cos_sched \
     ac_chunk=$AC_CHUNK \
     batch_size=$BATCH_SIZE \
-    wandb.name=$WANDB_NAME
-
+    wandb.name=$WANDB_NAME \
+    wandb.mode=online
 echo "============================================="
 echo "Training Finished."
 echo "============================================="

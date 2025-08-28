@@ -11,6 +11,11 @@ temporal_ensemble=${6}
 
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 echo -e "\033[33mgpu id (to use): ${gpu_id}\033[0m"
+echo -e "\033[33mtask name: ${task_name}\033[0m"
+echo -e "\033[33mtask config: ${task_config}\033[0m"
+echo -e "\033[33mcheckpoint setting: ${ckpt_setting}\033[0m"
+echo -e "\033[33mseed: ${seed}\033[0m"
+echo -e "\033[33mtemporal ensemble: ${temporal_ensemble}\033[0m"
 
 cd ../.. # move to root
 

@@ -1,0 +1,41 @@
+# 파일 경로: experiments/task/robotwin_stack_blocks_three.yaml
+
+# _target_을 범용 Task 클래스로 변경
+_target_: data4robotics.task.BCTask
+
+# RoboTwin 데이터셋의 사양에 맞게 수정
+obs_dim: 14          # state 벡터의 차원 (14)
+ac_dim: 14           # action 벡터의 차원 (14)
+n_cams: 4            # 카메라 개수 (4)
+
+# train_buffer 설정을 RobobufReplayBuffer로 변경하고 파라미터 수정
+train_buffer:
+  _target_: data4robotics.replay_buffer.RobobufReplayBuffer
+  
+  # 1. 우리가 생성한 buf.pkl 파일 경로를 여기에 명시
+  #    (finetune.yaml의 buffer_path를 참조하도록 ${buffer_path} 사용)
+  buffer_path: ${buffer_path} 
+  
+  # 2. RoboTwin에 맞는 파라미터 설정
+  ac_dim: ${task.ac_dim}         # 위에서 정의한 ac_dim (14) 참조
+  cam_indexes: [0, 1, 2]       # (head, head_depth, head_normal)
+  
+  # 3. 목표(goal) 이미지는 사용하지 않으므로 비워둠
+  goal_indexes: []
+
+  # 4. 과거 프레임 수 (img_chunk에서 1을 뺌, img_chunk=1이면 0이 됨)
+  past_frames: ${add:${img_chunk},-1}
+  
+  # 5. 행동 청크 크기
+  ac_chunk: ${ac_chunk}
+
+# test_buffer도 train_buffer와 유사하게 설정
+test_buffer:
+  _target_: data4robotics.replay_buffer.RobobufReplayBuffer
+  buffer_path: ${buffer_path}
+  mode: test
+  ac_dim: ${task.ac_dim}
+  cam_indexes: [0, 1, 2]
+  goal_indexes: []
+  past_frames: ${add:${img_chunk},-1}
+  ac_chunk: ${ac_chunk}

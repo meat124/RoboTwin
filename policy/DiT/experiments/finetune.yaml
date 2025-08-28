@@ -15,6 +15,7 @@ defaults:
 hydra:
   run:
     dir: bc_finetune/${exp_name}/wandb_${wandb.name}_${hydra:runtime.choices.task}_${hydra:runtime.choices.agent/features}_${now:%Y-%m-%d_%H-%M-%S}
+    # dir: bc_finetune/${exp_name}/wandb_${wandb.name}_${hydra:runtime.choices.task}_${hydra:runtime.choices.agent/features}_2025-08-25_09-50-55  # resume
   sweep:
     dir: ${base:}/../bc_finetune/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
     subdir: run${hydra:job.num}_${hydra:runtime.choices.task}_${hydra:runtime.choices.agent/features}
@@ -23,12 +24,13 @@ rt: ${hydra:runtime.choices.agent/features}
 
 exp_name: test
 checkpoint_path: ${exp_name}.ckpt
+resume_path: null
 batch_size: 250
 num_workers: 10
 lr: 0.0003
 max_iterations: 150000
 eval_freq: 1000
-save_freq: 10000
+save_freq: 50000
 schedule_freq: 1
 devices: 1
 seed: 292285
