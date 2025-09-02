@@ -21,6 +21,8 @@ from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 from data4robotics.agent import BaseAgent
 from scipy.spatial.distance import pdist, squareform
 
+from MoGe.moge.model.v2 import MoGeModel
+
 
 def _get_activation_fn(activation):
     """Return an activation function given a string"""
@@ -425,6 +427,7 @@ class DiffusionGraphormerAgent(BaseAgent):
         early_fusion=False,
         feat_norm=None,
         token_dim=None,
+        moge_pretrained_path=None,
         graphormer_kwargs=dict(),
         noise_net_kwargs=dict(),
     ):
@@ -476,6 +479,9 @@ class DiffusionGraphormerAgent(BaseAgent):
         )
         
         self.robot = yourdfpy.URDF.load(graphormer_kwargs["urdf_path"])
+
+        # dummy model
+        self.moge_model = MoGeModel.from_pretrained(moge_pretrained_path).to(self.device)
 
 
     def forward(self, imgs, obs, ac_flat, mask_flat):

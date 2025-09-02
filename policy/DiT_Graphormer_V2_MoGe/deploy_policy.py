@@ -106,7 +106,7 @@ def get_model(usr_args):  # from deploy_policy.yml and eval.sh (overrides)
 act_history = None
 
 
-def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_model=None):
+def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_model=None, cam_indexes=None):
     """
     All the function interfaces below are just examples
     You can modify them according to your implementation

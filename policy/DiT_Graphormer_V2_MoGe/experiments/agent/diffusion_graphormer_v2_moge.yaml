@@ -22,7 +22,6 @@ imgs_per_cam: ${add:${img_chunk},${len:${task.train_buffer.goal_indexes}}}
 share_cam_features: False
 early_fusion: False
 feat_norm: null
-moge_pretrained_path: /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/visual_features/moge_model/model_vits_normal.pt
 
 graphormer_kwargs:
   urdf_path: /scratch2/meat124/dit_ws/src/RoboTwin/assets/embodiments/aloha-agilex/urdf/arx5_description_isaac.urdf
