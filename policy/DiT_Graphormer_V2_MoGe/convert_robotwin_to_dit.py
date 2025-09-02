@@ -368,11 +368,19 @@ def convert_robotwin_to_dit_moge_format(data_dir: Path, out_dir: Path, gaussian_
                 current_traj.append((obs_dict, action, reward))
                 all_actions.append(action)
             all_trajs.append(current_traj)
+        
 
     print("\n통계 계산 완료!")
     print(f"  - Global Depth Range:  [{depth_min:.4f}, {depth_max:.4f}]")
     print(f"  - Global Normal Range: [{normal_min:.4f}, {normal_max:.4f}]")
-    
+
+    with open(out_dir / "image_norm.json", "w") as f:
+        json.dump({
+            "depth": {"min": float(depth_min), "max": float(depth_max)},
+            "normal": {"min": float(normal_min), "max": float(normal_max)}
+        }, f, indent=4)
+
+    return  # 중간 점검을 위해 여기서 일단 종료
     # --- 2단계: 후처리 (정규화 및 인코딩) ---
     print("\n2단계: 후처리(정규화 및 인코딩) 시작...")
     epsilon = 1e-8

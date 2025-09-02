@@ -19,10 +19,7 @@ import yourdfpy
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 
 from data4robotics.agent import BaseAgent
-import numpy as np
 from scipy.spatial.distance import pdist, squareform
-
-from MoGe.moge.model.v2 import MoGeModel
 
 
 def _get_activation_fn(activation):
@@ -428,7 +425,6 @@ class DiffusionGraphormerAgent(BaseAgent):
         early_fusion=False,
         feat_norm=None,
         token_dim=None,
-        moge_pretrained_path=None,
         graphormer_kwargs=dict(),
         noise_net_kwargs=dict(),
     ):
@@ -481,7 +477,6 @@ class DiffusionGraphormerAgent(BaseAgent):
         
         self.robot = yourdfpy.URDF.load(graphormer_kwargs["urdf_path"])
 
-        self.moge_model = MoGeModel.from_pretrained(moge_pretrained_path).to(self.device)
 
     def forward(self, imgs, obs, ac_flat, mask_flat):
         """
@@ -663,35 +658,3 @@ class DiffusionGraphormerAgent(BaseAgent):
     @property
     def ac_dim(self):
         return self._ac_dim
-
-
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"device: {device}")
-
-    model = MoGeModel.from_pretrained("Ruicheng/moge-2-vitl").to(device)     
-    
-    # Read the input image and convert to tensor (3, H, W) with RGB values normalized to [0, 1]
-    input_image = cv2.cvtColor(cv2.imread("/scratch2/meat124/dit_ws/src/MoGe/example_images/04_BunnyCake.jpg"), cv2.COLOR_BGR2RGB)                       
-    input_image = torch.tensor(input_image / 255, dtype=torch.float32, device=device).permute(2, 0, 1)    
-
-    # Infer 
-    import time
-    st = time.time()
-    output = model.infer(input_image)
-    en = time.time()
-    print(f"Inference time: {en - st:.2f} seconds")
-
-    print("output")
-
-    import matplotlib.pyplot as plt
-
-    # Visualize the depth map
-    depth_map = output["depth"].cpu().numpy()
-    plt.imshow(depth_map, cmap='viridis')
-    plt.colorbar(label='Depth')
-    plt.title("Predicted Depth Map")
-    plt.axis('off')
-    # To save the figure instead of displaying it, you can use:
-    plt.savefig("depth_map_basic.png", bbox_inches='tight', pad_inches=0)
-    # plt.show()

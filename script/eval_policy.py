@@ -23,8 +23,6 @@ import time
 
 from generate_episode_instructions import *
 
-from MoGe.moge.model.v2 import MoGeModel
-
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
 
@@ -216,27 +214,42 @@ def eval_policy(task_name,
     eval_func = eval_function_decorator(policy_name, "eval")
     reset_func = eval_function_decorator(policy_name, "reset_model")
 
+    with open(f"./policy/{policy_name}/experiments/task/{task_name}.yaml", "r", encoding="utf-8") as f:
+        task_config = yaml.safe_load(f)
+        cam_indexes = task_config["train_buffer"]["cam_indexes"]
+        print(f"cam_indexes: {cam_indexes}")
+
     now_seed = st_seed
     task_total_reward = 0
     clear_cache_freq = args["clear_cache_freq"]
 
     args["eval_mode"] = True
 
-    moge_model = MoGeModel.from_pretrained("./policy/DiT_Graphormer_V2_MoGe/visual_features/moge_model/model_vits_normal.pt") if "MoGe" in policy_name else None
-    moge_model = moge_model.to("cuda")
-
     ckpt_path = Path(args["ckpt_setting"])
     with open(ckpt_path.parent / "ac_norm.json", "r") as f:
         ac_norm = json.load(f)
         _AC_LOC = np.array(ac_norm["loc"], dtype=np.float32)
         _AC_SCALE = np.array(ac_norm["scale"], dtype=np.float32)
-        
-    with open(ckpt_path.parent / "image_norm.json", "r") as f:
-        image_norm = json.load(f)
-        _DEPTH_MIN = image_norm["depth"]["min"]
-        _DEPTH_MAX = image_norm["depth"]["max"]
-        _NORMAL_MIN = image_norm["normal"]["min"]
-        _NORMAL_MAX = image_norm["normal"]["max"]
+
+    if "MoGe" in policy_name:
+        # import MoGe model
+        from MoGe.moge.model.v2 import MoGeModel
+        moge_model = MoGeModel.from_pretrained("./policy/DiT_Graphormer_V2_MoGe/visual_features/moge_model/model_vits_normal.pt")
+        moge_model = moge_model.to("cuda")
+
+        # load depth image normalization parameter
+        with open(ckpt_path.parent / "image_norm.json", "r") as f:
+            image_norm = json.load(f)
+            _DEPTH_MIN = image_norm["depth"]["min"]
+            _DEPTH_MAX = image_norm["depth"]["max"]
+            _NORMAL_MIN = image_norm["normal"]["min"]
+            _NORMAL_MAX = image_norm["normal"]["max"]
+    else:
+        moge_model = None
+        _DEPTH_MIN = None
+        _DEPTH_MAX = None
+        _NORMAL_MIN = None
+        _NORMAL_MAX = None
 
     norm = {
         "loc": _AC_LOC,
@@ -324,7 +337,10 @@ def eval_policy(task_name,
         reset_func(model)
         while TASK_ENV.take_action_cnt < TASK_ENV.step_lim:
             observation = TASK_ENV.get_obs()
-            eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble, norm=norm, moge_model=moge_model)
+            if moge_model:
+                eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble, norm=norm, moge_model=moge_model, cam_indexes=cam_indexes)
+            else:
+                eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble, norm=norm, cam_indexes=cam_indexes)
             if TASK_ENV.eval_success:
                 succ = True
                 break

@@ -60,14 +60,14 @@ class DiT_Acdim_Seq:
         obs = self.get_n_steps_obs()
 
         imgs = dict(
-            cam0=obs["cam0"],
-            cam1=obs["cam1"],
-            cam2=obs["cam2"],
-            cam3=obs["cam3"],
+            cam0=obs["cam0"] if "cam0" in obs else None,
+            cam1=obs["cam1"] if "cam1" in obs else None,
+            cam2=obs["cam2"] if "cam2" in obs else None,
+            cam3=obs["cam3"] if "cam3" in obs else None,
         )
         qpos = obs["agent_pos"][-1]
 
-        imgs = {k: v.unsqueeze(0).to(self.device) for k, v in imgs.items()}  # add batch dimension
+        imgs = {k: v.unsqueeze(0).to(self.device) for k, v in imgs.items() if v is not None}
         qpos = qpos.unsqueeze(0).to(self.device)  # add batch dimension
         
         with torch.no_grad():

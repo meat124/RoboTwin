@@ -17,6 +17,12 @@ IMAGE_SIZE = (256, 256)  # Fixed image size for resizing
 EXP_WEIGHT = 0.01
 _AC_LOC = None
 _AC_SCALE = None
+cam_idx_dict = {
+    0: "front_camera",
+    1: "head_camera",
+    2: "left_camera",
+    3: "right_camera"
+}
 
 
 def get_preproc_transform(size):
@@ -29,7 +35,7 @@ def get_preproc_transform(size):
     ])
 
 
-def encode_obs(observation):  # Post-Process Observation
+def encode_obs(observation, cam_indexes=[0, 1, 2, 3]):  # Post-Process Observation
     def resize_obs(bgr_img: np.ndarray, size=IMAGE_SIZE):
         resized = cv2.resize(bgr_img, size, interpolation=cv2.INTER_AREA)
         resized_rgb = resized[:, :, ::-1].copy()  # Convert BGR to RGB
@@ -37,16 +43,14 @@ def encode_obs(observation):  # Post-Process Observation
         # resized = resized.float() / 255.0  # Convert to CxHxW format and normalize
         return torch.from_numpy(resized_rgb).permute(2, 0, 1).float() / 255.0  # Convert to CxHxW format and normalize
 
-    front_cam = resize_obs(observation["observation"]["front_camera"]["rgb"]) if "front_camera" in observation["observation"] else None
-    head_cam = resize_obs(observation["observation"]["head_camera"]["rgb"]) if "head_camera" in observation["observation"] else None
-    left_cam = resize_obs(observation["observation"]["left_camera"]["rgb"]) if "left_camera" in observation["observation"] else None
-    right_cam = resize_obs(observation["observation"]["right_camera"]["rgb"]) if "right_camera" in observation["observation"] else None
-    obs = dict(
-        cam0=front_cam,
-        cam1=head_cam,
-        cam2=left_cam,
-        cam3=right_cam,
-    )
+    obs = {}
+    idx = 0
+    for cam_idx in cam_indexes:
+        cam_name = cam_idx_dict[cam_idx]
+        if cam_name in observation["observation"]:
+            obs[f"cam{idx}"] = resize_obs(observation["observation"][cam_name]["rgb"])
+            idx += 1
+
     obs["agent_pos"] = torch.tensor(observation["joint_action"]["vector"], dtype=torch.float32)
     obs["agent_pos"] = (obs["agent_pos"] - _AC_LOC) / _AC_SCALE
 
@@ -81,7 +85,7 @@ def get_model(usr_args):  # from deploy_policy.yml and eval.sh (overrides)
 act_history = None
 
 
-def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_model=None):
+def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, cam_indexes=[0, 1, 2, 3]):
     """
     All the function interfaces below are just examples
     You can modify them according to your implementation
@@ -91,10 +95,8 @@ def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_
     global _AC_LOC, _AC_SCALE
     _AC_LOC = norm["loc"]
     _AC_SCALE = norm["scale"]
-    if None in [_AC_LOC, _AC_SCALE]:
-        raise ValueError("Normalization parameters are not properly set.")
 
-    obs = encode_obs(observation)
+    obs = encode_obs(observation, cam_indexes=cam_indexes)
     instruction = TASK_ENV.get_instruction()
     
     if temporal_ensemble:
@@ -123,7 +125,7 @@ def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_
 
         TASK_ENV.take_action(action)
         observation = TASK_ENV.get_obs()
-        obs = encode_obs(observation)
+        obs = encode_obs(observation, cam_indexes=cam_indexes)
         model.update_obs(obs)
     else:
         # ======== Get Action without Temporal Ensemble ========
@@ -133,7 +135,7 @@ def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_
             action = action * _AC_SCALE + _AC_LOC
             TASK_ENV.take_action(action)
             observation = TASK_ENV.get_obs()
-            obs = encode_obs(observation)
+            obs = encode_obs(observation, cam_indexes=cam_indexes)
             model.update_obs(obs)
 
 

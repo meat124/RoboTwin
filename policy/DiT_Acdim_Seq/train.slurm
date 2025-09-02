@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --job-name=policy_train         # 잡 이름 (Job name)
+#SBATCH --job-name=policy_train     # 잡 이름 (Job name)
 #SBATCH --output=logs/%x_%j.out     # 표준 출력 로그 파일 (%x: job-name, %j: jobid)
 #SBATCH --error=logs/%x_%j.err      # 에러 로그 파일
-#SBATCH --partition=suma_a6000        # 사용할 파티션 이름
+#SBATCH --partition=suma_rtx4090    # 사용할 파티션 이름
 #SBATCH --gres=gpu:1                # GPU 1개 요청 (클러스터 설정에 맞게)
 #SBATCH --time=24:00:00             # 실행 시간 제한 (HH:MM:SS)
 # 그 외
