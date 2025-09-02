@@ -18,13 +18,6 @@ EXP_WEIGHT = 0.01
 _AC_LOC = None
 _AC_SCALE = None
 
-with open("./ac_norm.json", "r") as f:
-    ac_norm = json.load(f)
-    ac_loc = np.array(ac_norm["loc"], dtype=np.float32)
-    ac_scale = np.array(ac_norm["scale"], dtype=np.float32)
-    _AC_LOC = ac_loc
-    _AC_SCALE = ac_scale
-
 
 def get_preproc_transform(size):
     return transforms.Compose([
@@ -88,13 +81,19 @@ def get_model(usr_args):  # from deploy_policy.yml and eval.sh (overrides)
 act_history = None
 
 
-def eval(TASK_ENV, model, observation, temporal_ensemble=False):
+def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_model=None):
     """
     All the function interfaces below are just examples
     You can modify them according to your implementation
     But we strongly recommend keeping the code logic unchanged
     """
     global act_history
+    global _AC_LOC, _AC_SCALE
+    _AC_LOC = norm["loc"]
+    _AC_SCALE = norm["scale"]
+    if None in [_AC_LOC, _AC_SCALE]:
+        raise ValueError("Normalization parameters are not properly set.")
+
     obs = encode_obs(observation)
     instruction = TASK_ENV.get_instruction()
     

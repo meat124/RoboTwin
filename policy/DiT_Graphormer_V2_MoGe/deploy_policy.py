@@ -114,12 +114,14 @@ def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_
     """
     global act_history
     global _AC_LOC, _AC_SCALE, _DEPTH_MIN, _DEPTH_MAX, _NORMAL_MIN, _NORMAL_MAX
-    _AC_LOC = norm["ac_loc"]
-    _AC_SCALE = norm["ac_scale"]
+    _AC_LOC = norm["loc"]
+    _AC_SCALE = norm["scale"]
     _DEPTH_MIN = norm["depth_min"]
     _DEPTH_MAX = norm["depth_max"]
     _NORMAL_MIN = norm["normal_min"]
     _NORMAL_MAX = norm["normal_max"]
+    if None in [_AC_LOC, _AC_SCALE, _DEPTH_MIN, _DEPTH_MAX, _NORMAL_MIN, _NORMAL_MAX]:
+        raise ValueError("Normalization parameters are not properly set.")
     
     obs = encode_obs(observation, moge_model)
     instruction = TASK_ENV.get_instruction()

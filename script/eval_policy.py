@@ -239,8 +239,8 @@ def eval_policy(task_name,
         _NORMAL_MAX = image_norm["normal"]["max"]
 
     norm = {
-        "ac_loc": _AC_LOC,
-        "ac_scale": _AC_SCALE,
+        "loc": _AC_LOC,
+        "scale": _AC_SCALE,
         "depth_min": _DEPTH_MIN,
         "depth_max": _DEPTH_MAX,
         "normal_min": _NORMAL_MIN,
