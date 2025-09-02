@@ -102,7 +102,7 @@ def bc_finetune(cfg: DictConfig):
                 if val_loss < global_val_loss:
                     global_val_loss = val_loss
                     ckpt_path = f"{cfg.checkpoint_path}_best.ckpt"
-                    trainer.save_checkpoint(ckpt_path, None)
+                    trainer.save_checkpoint(ckpt_path, misc.GLOBAL_STEP)
                     best_ckpt_step = misc.GLOBAL_STEP
 
             if misc.GLOBAL_STEP >= cfg.max_iterations:

@@ -63,7 +63,6 @@ class DiT_Graphormer_V2_MoGe:
             cam0=obs["cam0"],
             cam1=obs["cam1"],
             cam2=obs["cam2"],
-            cam3=obs["cam3"],
         )
         qpos = obs["agent_pos"][-1]
 

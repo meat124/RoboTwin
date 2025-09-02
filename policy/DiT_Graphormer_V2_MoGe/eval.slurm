@@ -1,30 +1,20 @@
 #!/bin/bash
 
-#SBATCH --job-name=policy_train         # 잡 이름 (Job name)
+#SBATCH --job-name=policy_eval         # 잡 이름 (Job name)
 #SBATCH --output=logs/%x_%j.out     # 표준 출력 로그 파일 (%x: job-name, %j: jobid)
 #SBATCH --error=logs/%x_%j.err      # 에러 로그 파일
-#SBATCH --partition=suma_a6000        # 사용할 파티션 이름
+#SBATCH --partition=suma_rtx4090        # 사용할 파티션 이름
 #SBATCH --gres=gpu:1                # GPU 1개 요청 (클러스터 설정에 맞게)
-#SBATCH --time=24:00:00             # 실행 시간 제한 (HH:MM:SS)
+#SBATCH --time=12:00:00             # 실행 시간 제한 (HH:MM:SS)
 # 그 외
 
 module swap cuda/12.5 cuda/12.1
-source /home/meat124/anaconda3/bin/activate RoboTwin_DiT_test
-conda activate RoboTwin_DiT_test              # Conda 환경 활성화
+source /home/meat124/anaconda3/bin/activate RoboTwin_DiT_MoGe
+conda activate RoboTwin_DiT_MoGe              # Conda 환경 활성화
 echo "Conda environment activated."
 
 # 실제 실행 명령
 echo "Starting eval script in DiT_Graphormer_V2_MoGe directory."
-# bash train.sh ${task_name} ${task_config} ${expert_data_num} ${seed} ${gpu_id}
-# diffusion
-srun bash eval.sh stack_blocks_three demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_renewed/wandb_dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_renewed_stack_blocks_three_resnet_gn_2025-08-17_00-41-49/dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_renewed.ckpt 0 0 False
-# acdim_seq
-# srun bash eval.sh stack_blocks_three demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_acdim_seq/wandb_dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_acdim_seq_place_dual_shoes_resnet_gn_2025-08-19_12-26-26/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_acdim_seq.ckpt 0 0 False
-# graphormer
-# srun bash eval.sh stack_blocks_three demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer/wandb_dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_place_dual_shoes_resnet_gn_2025-08-25_09-52-19/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer.ckpt 0 0 False
-# graphormer_flat
-# srun bash eval.sh stack_blocks_three demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_graphormer_flat/wandb_dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_graphormer_flat_stack_blocks_three_resnet_gn_2025-08-20_12-10-45/dit_robotwin_stack_blocks_three_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_graphormer_flat.ckpt 0 0 False
-# graphormer_v2
-# srun bash eval.sh stack_blocks_three demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2/wandb_dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2_place_dual_shoes_resnet_gn_2025-08-25_09-50-55/dit_robotwin_place_dual_shoes_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2.ckpt_best.ckpt 0 0 False
+srun bash eval.sh handover_block demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT_Graphormer_V2_MoGe/bc_finetune/dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2_moge/wandb_dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2_moge_handover_block_resnet_gn_2025-08-29_00-45-50/dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_graphormer_v2_moge.ckpt_best.ckpt 0 0 True
 
 echo "Eval script completed."

@@ -117,6 +117,10 @@ class RobobufReplayBuffer(Dataset):
                 _AC_LOC = torch.tensor(ac_loc, dtype=torch.float32)
                 _AC_SCALE = torch.tensor(ac_scale, dtype=torch.float32)
 
+        image_norm_file = os.path.join(os.path.dirname(buffer_path), "image_norm.json")
+        if os.path.exists(image_norm_file):
+            shutil.copyfile(image_norm_file, "./image_norm.json")
+
         # shuffle the list with the fixed seed
         rng = random.Random(BUF_SHUFFLE_RNG)
 

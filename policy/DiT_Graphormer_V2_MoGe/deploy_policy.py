@@ -12,18 +12,18 @@ import matplotlib.pyplot as plt
 from collections import deque
 from torchvision import transforms
 
+from MoGe.moge.model.v2 import MoGeModel
+
 
 IMAGE_SIZE = (256, 256)  # Fixed image size for resizing
 EXP_WEIGHT = 0.01
 _AC_LOC = None
 _AC_SCALE = None
-
-with open("./ac_norm.json", "r") as f:
-    ac_norm = json.load(f)
-    ac_loc = np.array(ac_norm["loc"], dtype=np.float32)
-    ac_scale = np.array(ac_norm["scale"], dtype=np.float32)
-    _AC_LOC = ac_loc
-    _AC_SCALE = ac_scale
+_DEPTH_MIN = None
+_DEPTH_MAX = None
+_NORMAL_MIN = None
+_NORMAL_MAX = None
+EPSILON = 1e-8
 
 
 def get_preproc_transform(size):
@@ -36,7 +36,7 @@ def get_preproc_transform(size):
     ])
 
 
-def encode_obs(observation):  # Post-Process Observation
+def encode_obs(observation, moge_model=None):  # Post-Process Observation
     def resize_obs(bgr_img: np.ndarray, size=IMAGE_SIZE):
         resized = cv2.resize(bgr_img, size, interpolation=cv2.INTER_AREA)
         resized_rgb = resized[:, :, ::-1].copy()  # Convert BGR to RGB
@@ -44,18 +44,36 @@ def encode_obs(observation):  # Post-Process Observation
         # resized = resized.float() / 255.0  # Convert to CxHxW format and normalize
         return torch.from_numpy(resized_rgb).permute(2, 0, 1).float() / 255.0  # Convert to CxHxW format and normalize
 
-    front_cam = resize_obs(observation["observation"]["front_camera"]["rgb"]) if "front_camera" in observation["observation"] else None
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     head_cam = resize_obs(observation["observation"]["head_camera"]["rgb"]) if "head_camera" in observation["observation"] else None
-    left_cam = resize_obs(observation["observation"]["left_camera"]["rgb"]) if "left_camera" in observation["observation"] else None
-    right_cam = resize_obs(observation["observation"]["right_camera"]["rgb"]) if "right_camera" in observation["observation"] else None
-    obs = dict(
-        cam0=front_cam,
-        cam1=head_cam,
-        cam2=left_cam,
-        cam3=right_cam,
-    )
+    obs = {
+        "cam0": head_cam,
+    }
     obs["agent_pos"] = torch.tensor(observation["joint_action"]["vector"], dtype=torch.float32)
     obs["agent_pos"] = (obs["agent_pos"] - _AC_LOC) / _AC_SCALE
+    
+    # infer depth, normal
+    moge_model = moge_model.to(device)
+
+    output = moge_model.infer(head_cam)
+    depth = output.get("depth").cpu().numpy()
+    normal = output.get("normal").cpu().numpy()
+    mask = output.get("mask").cpu().numpy()
+
+    # depth normalization
+    normalized_depth = np.full_like(depth, 1.0, dtype=np.float32)  # background depth is 1.0
+    valid_depth = depth[mask]
+    normalized_value = (valid_depth - _DEPTH_MIN) / (_DEPTH_MAX - _DEPTH_MIN + EPSILON)
+    normalized_depth[mask] = normalized_value
+    normalized_depth = np.expand_dims(normalized_depth, axis=0).repeat(3, axis=0)  # 3xHxW for depth input
+
+    # normal normalization
+    normalized_normal = (normal - _NORMAL_MIN) / (_NORMAL_MAX - _NORMAL_MIN + EPSILON)
+    normalized_normal = np.transpose(normalized_normal, (2, 0, 1))  # HxWx3 -> 3xHxW for normal input
+
+    obs["cam1"] = torch.from_numpy(normalized_depth)
+    obs["cam2"] = torch.from_numpy(normalized_normal)
 
     return obs
 
@@ -88,14 +106,22 @@ def get_model(usr_args):  # from deploy_policy.yml and eval.sh (overrides)
 act_history = None
 
 
-def eval(TASK_ENV, model, observation, temporal_ensemble=False):
+def eval(TASK_ENV, model, observation, temporal_ensemble=False, norm=None, moge_model=None):
     """
     All the function interfaces below are just examples
     You can modify them according to your implementation
     But we strongly recommend keeping the code logic unchanged
     """
     global act_history
-    obs = encode_obs(observation)
+    global _AC_LOC, _AC_SCALE, _DEPTH_MIN, _DEPTH_MAX, _NORMAL_MIN, _NORMAL_MAX
+    _AC_LOC = norm["ac_loc"]
+    _AC_SCALE = norm["ac_scale"]
+    _DEPTH_MIN = norm["depth_min"]
+    _DEPTH_MAX = norm["depth_max"]
+    _NORMAL_MIN = norm["normal_min"]
+    _NORMAL_MAX = norm["normal_max"]
+    
+    obs = encode_obs(observation, moge_model)
     instruction = TASK_ENV.get_instruction()
     
     if temporal_ensemble:
@@ -124,17 +150,17 @@ def eval(TASK_ENV, model, observation, temporal_ensemble=False):
 
         TASK_ENV.take_action(action)
         observation = TASK_ENV.get_obs()
-        obs = encode_obs(observation)
+        obs = encode_obs(observation, moge_model)
         model.update_obs(obs)
     else:
         # ======== Get Action without Temporal Ensemble ========
         actions = model.get_action(obs)
-        
+
         for action in actions:
             action = action * _AC_SCALE + _AC_LOC
             TASK_ENV.take_action(action)
             observation = TASK_ENV.get_obs()
-            obs = encode_obs(observation)
+            obs = encode_obs(observation, moge_model)
             model.update_obs(obs)
 
 

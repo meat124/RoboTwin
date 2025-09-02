@@ -18,8 +18,12 @@ from datetime import datetime
 import importlib
 import argparse
 import pdb
+import json
+import time
 
 from generate_episode_instructions import *
+
+from MoGe.moge.model.v2 import MoGeModel
 
 current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
@@ -122,7 +126,7 @@ def main(usr_args):
     else:
         embodiment_name = str(embodiment_type[0]) + "+" + str(embodiment_type[1])
 
-    save_dir = Path(f"eval_result/{task_name}/{policy_name}/{task_config}/{ckpt_setting}/{current_time}")
+    save_dir = Path(f"eval_result/{task_name}/{policy_name}/{task_config}/{ckpt_setting}/temporal_ensemble_{temporal_ensemble}/{current_time}")
     save_dir.mkdir(parents=True, exist_ok=True)
 
     if args["eval_video_log"]:
@@ -218,6 +222,31 @@ def eval_policy(task_name,
 
     args["eval_mode"] = True
 
+    moge_model = MoGeModel.from_pretrained("./policy/DiT_Graphormer_V2_MoGe/visual_features/moge_model/model_vits_normal.pt") if "MoGe" in policy_name else None
+    moge_model = moge_model.to("cuda")
+
+    ckpt_path = Path(args["ckpt_setting"])
+    with open(ckpt_path.parent / "ac_norm.json", "r") as f:
+        ac_norm = json.load(f)
+        _AC_LOC = np.array(ac_norm["loc"], dtype=np.float32)
+        _AC_SCALE = np.array(ac_norm["scale"], dtype=np.float32)
+        
+    with open(ckpt_path.parent / "image_norm.json", "r") as f:
+        image_norm = json.load(f)
+        _DEPTH_MIN = image_norm["depth"]["min"]
+        _DEPTH_MAX = image_norm["depth"]["max"]
+        _NORMAL_MIN = image_norm["normal"]["min"]
+        _NORMAL_MAX = image_norm["normal"]["max"]
+
+    norm = {
+        "ac_loc": _AC_LOC,
+        "ac_scale": _AC_SCALE,
+        "depth_min": _DEPTH_MIN,
+        "depth_max": _DEPTH_MAX,
+        "normal_min": _NORMAL_MIN,
+        "normal_max": _NORMAL_MAX,
+    }
+
     while succ_seed < test_num:
         render_freq = args["render_freq"]
         args["render_freq"] = 0
@@ -295,7 +324,7 @@ def eval_policy(task_name,
         reset_func(model)
         while TASK_ENV.take_action_cnt < TASK_ENV.step_lim:
             observation = TASK_ENV.get_obs()
-            eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble)
+            eval_func(TASK_ENV, model, observation, temporal_ensemble=temporal_ensemble, norm=norm, moge_model=moge_model)
             if TASK_ENV.eval_success:
                 succ = True
                 break

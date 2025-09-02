@@ -9,6 +9,9 @@ gpu_id=${5}
 temporal_ensemble=${6}
 # [TODO] add parameters here
 
+SCRIPT_DIR=$(cd $(dirname $0) && pwd)
+export PYTHONPATH=${SCRIPT_DIR}:${PYTHONPATH}
+
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 echo -e "\033[33mgpu id (to use): ${gpu_id}\033[0m"
 echo -e "\033[33mtask name: ${task_name}\033[0m"
