@@ -9,8 +9,8 @@ gpu_id=${5}
 export AC_CHUNK=16
 export BATCH_SIZE=150
 
-export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_monocular_diffusion_graphormer_v2"
-export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_monocular_diffusion_graphormer_v2"
+export EXP_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_monocular_diffusion_graphormer_v2_fix_edge"
+export WANDB_NAME="dit_robotwin_${task_name}_${task_config}_seed${seed}_monocular_diffusion_graphormer_v2_fix_edge"
 # export EXP_NAME="test"
 # export WANDB_NAME="test"
 

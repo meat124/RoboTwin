@@ -4,7 +4,7 @@ _target_: data4robotics.task.BCTask
 # RoboTwin 데이터셋의 사양에 맞게 수정
 obs_dim: 14          # state 벡터의 차원 (14)
 ac_dim: 14           # action 벡터의 차원 (14)
-n_cams: 4            # 카메라 개수 (4)
+n_cams: 3            # 카메라 개수 (3)
 
 # train_buffer 설정을 RobobufReplayBuffer로 변경하고 파라미터 수정
 train_buffer:

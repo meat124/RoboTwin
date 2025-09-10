@@ -6,7 +6,7 @@ _target_: data4robotics.task.BCTask
 # RoboTwin 데이터셋의 사양에 맞게 수정
 obs_dim: 14          # state 벡터의 차원 (14)
 ac_dim: 14           # action 벡터의 차원 (14)
-n_cams: 4            # 카메라 개수 (4)
+n_cams: 1            # 카메라 개수 (4)
 
 # train_buffer 설정을 RobobufReplayBuffer로 변경하고 파라미터 수정
 train_buffer:
@@ -18,7 +18,7 @@ train_buffer:
   
   # 2. RoboTwin에 맞는 파라미터 설정
   ac_dim: ${task.ac_dim}         # 위에서 정의한 ac_dim (14) 참조
-  cam_indexes: [0, 1, 2, 3]       # 4개 카메라 인덱스 (front, head, left, right)
+  cam_indexes: [1]       # 4개 카메라 인덱스 (front, head, left, right)
   
   # 3. 목표(goal) 이미지는 사용하지 않으므로 비워둠
   goal_indexes: []
@@ -35,7 +35,7 @@ test_buffer:
   buffer_path: ${buffer_path}
   mode: test
   ac_dim: ${task.ac_dim}
-  cam_indexes: [0, 1, 2, 3]
+  cam_indexes: [1]
   goal_indexes: []
   past_frames: ${add:${img_chunk},-1}
   ac_chunk: ${ac_chunk}

@@ -307,12 +307,8 @@ class _DiTNoiseNet(nn.Module):
             max_spatial + 1,
             nhead,
             padding_idx=0,
-        )
-        self.edge_encoder = nn.Embedding(
-            max_spatial + 1,
-            nhead,
-            padding_idx=0,
-        )
+        )  # discrete hop distance
+        self.edge_encoder = nn.Linear(1, nhead)  # continuous distance (euclidean)
 
         # encoder blocks
         encoder_module = _SelfAttnEncoder(
@@ -383,8 +379,12 @@ class _DiTNoiseNet(nn.Module):
         # The padding format is (pad_left, pad_right, pad_top, pad_bottom)
         # We add one column to the left and one row to the top.
         joint_dist_matrix = F.pad(joint_dist_matrix, (1, 0, 1, 0), "constant", 0)  # [B, 15, 15]
-        edge_bias = self.edge_encoder(joint_dist_matrix.long())  # [B, 15, 15, nhead]
+        joint_dist_matrix = joint_dist_matrix.flatten(1).unsqueeze(-1)  # [B, 15*15, 1]
+
+        edge_bias = self.edge_encoder(joint_dist_matrix)  # [B, 15*15, nhead]
+        edge_bias = edge_bias.permute(0, 2, 1)  # [B, nhead, 15*15]
         edge_bias = edge_bias.reshape(B * nhead, n_node, n_node)
+
         attn_bias = attn_bias + edge_bias  # [B * nhead, n_node, n_node]
 
         graph_token_feature = self.graph_token.weight.unsqueeze(0).repeat(B, 1, 1)
