@@ -199,6 +199,75 @@ class _DiTDecoder(nn.Module):
             s.reset_parameters()
 
 
+class _HierarchicalDiTDecoder(nn.Module):
+    """
+    Hierarchical Block with Independent Segment Attention.
+    1. Segment-wise attention using a dedicated _DiTDecoder for each joint.
+    2. Cross-segment basic self-attention on CLS tokens.
+    """
+    def __init__(self, num_joints, hidden_dim, nhead, dim_feedforward, dropout, activation):
+        super().__init__()
+        self.segment_wise_attns = nn.ModuleList(
+            [_DiTDecoder(hidden_dim, nhead, dim_feedforward, dropout, activation) for _ in range(num_joints)]
+        )
+        self.cross_segment_attn = nn.TransformerEncoderLayer(
+            d_model=hidden_dim,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            activation=activation,
+            batch_first=True,  # 입력 shape (B, N, D)에 맞춤
+            norm_first=True
+        )
+
+    def forward(self, src, t, cond):
+        """
+        src: (B, N, T+1, D)
+        t: (B, D) - Time embedding
+        cond: (Seq_enc, B, D) - Conditioning from encoder
+        """
+        B, N, T_plus_1, D = src.shape
+        
+        # 1. Segment-wise DiT-style Self-Attention (독립적으로 수행)
+        segment_outputs = []
+        # <<< for 루프를 사용하여 각 관절과 해당 모듈에 대해 개별 연산
+        for i in range(N):
+            # i번째 관절의 시퀀스 추출: (B, T+1, D)
+            joint_sequence = src[:, i, :, :]
+            
+            # <<< _DiTDecoder는 (Seq, Batch, Dim) 입력을 기대하므로 transpose
+            joint_sequence_t = joint_sequence.transpose(0, 1) # -> (T+1, B, D)
+            
+            # 해당 관절의 독립 어텐션 모듈 통과
+            processed_sequence_t = self.segment_wise_attns[i](joint_sequence_t, t, cond)
+            
+            # <<< 원래 shape (Batch, Seq, Dim)으로 되돌리기
+            processed_sequence = processed_sequence_t.transpose(0, 1)
+            
+            segment_outputs.append(processed_sequence)
+
+        # 결과를 다시 (B, N, T+1, D) 형태로 결합
+        segment_output = torch.stack(segment_outputs, dim=1)
+
+        # 2. Cross-segment Basic Self-Attention
+        # 각 세그먼트의 CLS 토큰만 추출: (B, N, D)
+        cls_tokens = segment_output[:, :, 0, :].clone()
+        
+        # CLS 토큰들끼리 기본 어텐션 수행
+        cls_tokens_updated = self.cross_segment_attn(cls_tokens)
+
+        # 3. 업데이트된 CLS 토큰을 원래 시퀀스에 다시 결합
+        output = segment_output
+        output[:, :, 0, :] = cls_tokens_updated
+
+        return output
+    
+    def reset_parameters(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+
 class _FinalLayer(nn.Module):
     def __init__(self, hidden_size, out_size):
         super().__init__()
@@ -242,11 +311,137 @@ class _TransformerEncoder(nn.Module):
 
 
 class _TransformerDecoder(_TransformerEncoder):
-    def forward(self, src, t, all_conds):
+    # forward 시그니처를 수정하여 단일 cond를 받도록 함
+    def forward(self, src, t, cond):
         x = src
-        for layer, cond in zip(self.layers, all_conds):
+        # 모든 레이어에 동일한 t와 cond를 전달
+        for layer in self.layers:
             x = layer(x, t, cond)
         return x
+
+
+class _HierarchicalDiTNoiseNet(nn.Module):
+    def __init__(
+        self,
+        ac_dim,      # num_joints
+        ac_chunk,    # time_horizon (T)
+        time_dim=256,
+        hidden_dim=512,
+        num_blocks=6, # Hierarchical blocks
+        dropout=0.1,
+        dim_feedforward=2048,
+        nhead=8,
+        activation="gelu",
+    ):
+        super().__init__()
+
+        self.num_joints = ac_dim
+        self.ac_chunk = ac_chunk
+        self.hidden_dim = hidden_dim
+
+        # positional encoding blocks
+        self.enc_pos = _PositionalEncoding(hidden_dim)
+        self.dec_pos = _PositionalEncoding(hidden_dim, max_len=ac_chunk + 1)
+
+        # CLS token for each joint sequence
+        self.cls_tokens = nn.Parameter(torch.randn(1, self.num_joints, 1, hidden_dim))
+
+        # Input projection
+        self.time_net = _TimeNetwork(time_dim, hidden_dim)
+        self.ac_proj = nn.Sequential(
+            nn.Linear(1, 1),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(1, hidden_dim),
+        )
+
+        # encoder blocks
+        encoder_module = _SelfAttnEncoder(
+            hidden_dim, nhead, dim_feedforward, dropout, activation
+        )
+        self.encoder = _TransformerEncoder(encoder_module, num_blocks)
+
+        # decoder blocks
+        # <<< 구현한 HierarchicalDiTDecoder를 사용
+        decoder_module = _HierarchicalDiTDecoder(
+            num_joints=ac_dim,
+            hidden_dim=hidden_dim,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            activation=activation
+        )
+        # <<< 수정된 _TransformerDecoder를 사용
+        self.decoder = _TransformerDecoder(decoder_module, num_blocks)
+
+        # Final output layer
+        self.eps_out = _FinalLayer(hidden_dim, 1)
+
+        print(
+            "number of hierarchical diffusion parameters: {:e}".format(
+                sum(p.numel() for p in self.parameters())
+            )
+        )
+
+    def forward(self, noise_actions, time, obs_enc, enc_cache=None):
+        if enc_cache is None:
+            enc_cache = self.forward_enc(obs_enc)
+        
+        # <<< enc_cache 전체가 아닌, 마지막 레이어의 출력만 decoder로 전달
+        cond_from_enc = enc_cache[-1]
+        
+        return enc_cache, self.forward_dec(noise_actions, time, cond_from_enc)
+
+    def forward_enc(self, obs_enc):
+        obs_enc = obs_enc.transpose(0, 1) # (seq, batch, dim)
+        pos = self.enc_pos(obs_enc)
+        enc_cache = self.encoder(obs_enc, pos)
+        return enc_cache
+
+    def forward_dec(self, noise_actions, time, cond_from_enc):
+        # noise_actions shape: (B, T, N)
+        B, T, N = noise_actions.shape
+        time_enc = self.time_net(time)
+        
+        # 1. 입력 재구성 및 프로젝션
+        ac_tokens = noise_actions.permute(0, 2, 1).unsqueeze(-1)  # (B, N, T, 1)
+        ac_tokens = self.ac_proj(ac_tokens)  # (B, N, T, D)
+
+        # 2. CLS 토큰 추가
+        cls_tokens_expanded = self.cls_tokens.expand(B, -1, -1, -1)  # (B, N, 1, D)
+        dec_in = torch.cat([cls_tokens_expanded, ac_tokens], dim=2)  # (B, N, T+1, D)
+
+        # 3. 위치 인코딩 추가
+        # (Max_Len, 1, D) -> (1, Max_Len, D)
+        pos_encoding = self.dec_pos.pe.permute(1, 0, 2)
+        dec_in = dec_in + pos_encoding
+
+        # 4. 계층적 어텐션 블록 통과
+        # <<< 수정된 decoder에 t와 단일 cond를 전달
+        hierarchical_output = self.decoder(dec_in, time_enc, cond_from_enc)
+
+        # 5. 출력 재구성 및 노이즈 예측
+        # CLS 토큰 제거: (B, N, T, D)
+        output_tokens = hierarchical_output[:, :, 1:, :]
+        
+        # <<< 최종 MLP를 위한 형상 변환 및 조건 확장
+        # (B, N, T, D) -> (B*N, T, D)
+        output_reshaped = output_tokens.reshape(B * N, T, self.hidden_dim)
+        # (B*N, T, D) -> (T, B*N, D)
+        output_transposed = output_reshaped.transpose(0, 1)
+
+        # t와 cond도 B*N 배치에 맞게 확장
+        time_enc_expanded = time_enc.repeat_interleave(N, dim=0)
+        cond_from_enc_expanded = cond_from_enc.repeat_interleave(N, dim=1) # (Seq, B*N, D)
+
+        noise_pred = self.eps_out(output_transposed, time_enc_expanded, cond_from_enc_expanded)
+        
+        # 원래 형태로 복원
+        # (T, B*N, 1) -> (B*N, T, 1) -> (B, N, T, 1)
+        noise_pred_reshaped = noise_pred.transpose(0, 1).view(B, N, T, 1)
+        # (B, N, T, 1) -> (B, T, N)
+        noise_pred = noise_pred_reshaped.squeeze(-1).permute(0, 2, 1)
+        
+        return noise_pred
 
 
 class _DiTNoiseNet(nn.Module):
@@ -368,7 +563,7 @@ class DiffusionTransformerAgent(BaseAgent):
             token_dim=token_dim,
         )
 
-        self.noise_net = _DiTNoiseNet(
+        self.noise_net = _HierarchicalDiTNoiseNet(
             ac_dim=ac_dim,
             ac_chunk=ac_chunk,
             **noise_net_kwargs,
@@ -438,7 +633,7 @@ class DiffusionTransformerAgent(BaseAgent):
         for timestep in self.diffusion_schedule.timesteps:
             # predict noise given timestep
             batched_timestep = timestep.unsqueeze(0).repeat(B).to(device)
-            noise_pred = self.noise_net.forward_dec(noise_actions, batched_timestep, enc_cache)
+            noise_pred = self.noise_net.forward_dec(noise_actions, batched_timestep, enc_cache[-1])
 
             # take diffusion step
             noise_actions = self.diffusion_schedule.step(

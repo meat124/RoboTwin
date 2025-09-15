@@ -8,7 +8,7 @@ defaults:
   - features: resnet_gn_nopool
   - _self_
 
-_target_: data4robotics.models.diffusion.DiffusionTransformerAgent
+_target_: data4robotics.models.diffusion_origin_graphormer.DiffusionTransformerAgent
 odim: ${task.obs_dim}
 n_cams: ${task.n_cams}
 use_obs: add_token

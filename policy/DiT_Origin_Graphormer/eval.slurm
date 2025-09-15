@@ -15,7 +15,7 @@ echo "Conda environment activated."
 
 # 실제 실행 명령
 echo "Starting eval script in DiT directory."
-# diffusion
+# diffusion_origin_graphormer
 srun bash eval.sh handover_block demo_clean /scratch2/meat124/dit_ws/src/RoboTwin/policy/DiT/bc_finetune/dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion/wandb_dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion_handover_block_resnet_gn_2025-08-27_13-38-28/dit_robotwin_handover_block_demo_clean_seed0_img_chunk_1_ac_chunk_16_batch_150_diffusion.ckpt_best.ckpt 0 0 False
 
 echo "Eval script completed."
