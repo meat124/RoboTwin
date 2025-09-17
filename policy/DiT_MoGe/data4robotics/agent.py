@@ -40,8 +40,9 @@ class BaseAgent(nn.Module):
         if self._share_cam_features:
             self.visual_features = features
         else:
-            feat_list = [features] + [copy.deepcopy(features) for _ in range(1, n_cams)]
-            self.visual_features = nn.ModuleList(feat_list)
+            # feat_list = [features] + [copy.deepcopy(features) for _ in range(1, n_cams)]
+            # self.visual_features = nn.ModuleList(feat_list)
+            self.visual_features = features
 
         self.early_fusion = early_fusion
         imgs_per_cam = 1 if early_fusion else imgs_per_cam
@@ -95,7 +96,8 @@ class BaseAgent(nn.Module):
 
     def tokenize_obs(self, imgs, obs, flatten=False):
         # start by getting image tokens
-        tokens = self.embed(imgs)
+        # tokens = self.embed(imgs)
+        tokens = self.embed_depth(imgs['cam0'], imgs['cam1'])
 
         if self._obs_strat in ["add_token", "add_token_graphormer_v2"]:
             obs_token = self._obs_proc(obs)[:, None]
@@ -111,6 +113,12 @@ class BaseAgent(nn.Module):
         if flatten:
             return tokens.reshape((tokens.shape[0], -1))
         return tokens
+    
+    def embed_depth(self, rgb, depth):
+        embeds = [
+            self.visual_features(rgb, depth)
+        ]
+        return torch.cat(embeds, dim=1)
 
     def embed(self, imgs):
         def embed_helper(net, im):

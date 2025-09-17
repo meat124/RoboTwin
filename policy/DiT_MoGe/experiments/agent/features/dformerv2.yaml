@@ -4,4 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from .load_pretrained import load_resnet18, load_vit, load_dformerv2
+_target_: data4robotics.models.dformerv2.DFormerv2
+model_name: 'DFormerv2_Small_NYU'
+restore_path: ''           # for restoring our custom weights
