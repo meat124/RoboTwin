@@ -311,11 +311,9 @@ class _TransformerEncoder(nn.Module):
 
 
 class _TransformerDecoder(_TransformerEncoder):
-    # forward 시그니처를 수정하여 단일 cond를 받도록 함
-    def forward(self, src, t, cond):
+    def forward(self, src, t, all_conds):
         x = src
-        # 모든 레이어에 동일한 t와 cond를 전달
-        for layer in self.layers:
+        for layer, cond in zip(self.layers, all_conds):
             x = layer(x, t, cond)
         return x
 
@@ -385,11 +383,7 @@ class _HierarchicalDiTNoiseNet(nn.Module):
     def forward(self, noise_actions, time, obs_enc, enc_cache=None):
         if enc_cache is None:
             enc_cache = self.forward_enc(obs_enc)
-        
-        # <<< enc_cache 전체가 아닌, 마지막 레이어의 출력만 decoder로 전달
-        cond_from_enc = enc_cache[-1]
-        
-        return enc_cache, self.forward_dec(noise_actions, time, cond_from_enc)
+        return enc_cache, self.forward_dec(noise_actions, time, enc_cache)
 
     def forward_enc(self, obs_enc):
         obs_enc = obs_enc.transpose(0, 1) # (seq, batch, dim)
@@ -397,7 +391,7 @@ class _HierarchicalDiTNoiseNet(nn.Module):
         enc_cache = self.encoder(obs_enc, pos)
         return enc_cache
 
-    def forward_dec(self, noise_actions, time, cond_from_enc):
+    def forward_dec(self, noise_actions, time, enc_cache):
         # noise_actions shape: (B, T, N)
         B, T, N = noise_actions.shape
         time_enc = self.time_net(time)
@@ -417,7 +411,7 @@ class _HierarchicalDiTNoiseNet(nn.Module):
 
         # 4. 계층적 어텐션 블록 통과
         # <<< 수정된 decoder에 t와 단일 cond를 전달
-        hierarchical_output = self.decoder(dec_in, time_enc, cond_from_enc)
+        hierarchical_output = self.decoder(dec_in, time_enc, enc_cache)
 
         # 5. 출력 재구성 및 노이즈 예측
         # CLS 토큰 제거: (B, N, T, D)
@@ -431,7 +425,7 @@ class _HierarchicalDiTNoiseNet(nn.Module):
 
         # t와 cond도 B*N 배치에 맞게 확장
         time_enc_expanded = time_enc.repeat_interleave(N, dim=0)
-        cond_from_enc_expanded = cond_from_enc.repeat_interleave(N, dim=1) # (Seq, B*N, D)
+        cond_from_enc_expanded = enc_cache[-1].repeat_interleave(N, dim=1) # (Seq, B*N, D)
 
         noise_pred = self.eps_out(output_transposed, time_enc_expanded, cond_from_enc_expanded)
         
@@ -633,7 +627,7 @@ class DiffusionTransformerAgent(BaseAgent):
         for timestep in self.diffusion_schedule.timesteps:
             # predict noise given timestep
             batched_timestep = timestep.unsqueeze(0).repeat(B).to(device)
-            noise_pred = self.noise_net.forward_dec(noise_actions, batched_timestep, enc_cache[-1])
+            noise_pred = self.noise_net.forward_dec(noise_actions, batched_timestep, enc_cache)
 
             # take diffusion step
             noise_actions = self.diffusion_schedule.step(
