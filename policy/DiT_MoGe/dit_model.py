@@ -60,9 +60,9 @@ class DiT_MoGe:
         obs = self.get_n_steps_obs()
 
         imgs = dict(
-            cam0=obs["cam0"],
+            cam0=obs["cam0"].squeeze(0),
             cam1=obs["cam1"],
-            cam2=obs["cam2"],
+            # cam2=obs["cam2"],  # Normal is not used in current experiments
         )
         qpos = obs["agent_pos"][-1]
 

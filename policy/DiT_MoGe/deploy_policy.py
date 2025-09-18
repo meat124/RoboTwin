@@ -56,7 +56,7 @@ def encode_obs(observation, moge_model=None):  # Post-Process Observation
 
     output = moge_model.infer(head_cam)
     depth = output.get("depth").cpu().numpy()
-    normal = output.get("normal").cpu().numpy()
+    # normal = output.get("normal").cpu().numpy()
     mask = output.get("mask").cpu().numpy()
 
     # depth normalization
@@ -64,14 +64,14 @@ def encode_obs(observation, moge_model=None):  # Post-Process Observation
     valid_depth = depth[mask]
     normalized_value = (valid_depth - _DEPTH_MIN) / (_DEPTH_MAX - _DEPTH_MIN + EPSILON)
     normalized_depth[mask] = normalized_value
-    normalized_depth = np.expand_dims(normalized_depth, axis=0).repeat(3, axis=0)  # 3xHxW for depth input
+    # normalized_depth = np.expand_dims(normalized_depth, axis=0).repeat(3, axis=0)  # 3xHxW for depth input
 
     # normal normalization
-    normalized_normal = (normal - _NORMAL_MIN) / (_NORMAL_MAX - _NORMAL_MIN + EPSILON)
-    normalized_normal = np.transpose(normalized_normal, (2, 0, 1))  # HxWx3 -> 3xHxW for normal input
+    # normalized_normal = (normal - _NORMAL_MIN) / (_NORMAL_MAX - _NORMAL_MIN + EPSILON)
+    # normalized_normal = np.transpose(normalized_normal, (2, 0, 1))  # HxWx3 -> 3xHxW for normal input
 
     obs["cam1"] = torch.from_numpy(normalized_depth)
-    obs["cam2"] = torch.from_numpy(normalized_normal)
+    # obs["cam2"] = torch.from_numpy(normalized_normal)
 
     return obs
 
